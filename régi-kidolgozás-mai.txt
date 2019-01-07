@@ -1,0 +1,51 @@
+--Adjuk meg a NIKOVITS felhasználó azon index-szervezett tábláit (IOT), melyekhez tartozik túlcsordulási tábla!(táblanév)
+SELECT table_name FROM dba_tables 
+WHERE owner='NIKOVITS' AND iot_type = 'IOT_OVERFLOW';
+
+--Adjunk meg azon háromoszlopos indexek nevét és tulajdonosát, melyekben függvény alapú kifejezés van a harmadik oszlopban.(indexnév,tulajdonos)
+select index_owner, index_name from dba_ind_expressions where column_position = 3
+intersect
+select index_owner, index_name from DBA_IND_COLUMNS group by index_owner, index_name having count(*) = 3;
+
+--Adjuk meg azoknak a tábláknak a nevét, amelyeknek az utolsó 2 oszlopa VARCHAR2 típusú!(táblanév)
+select distinct table_name from
+(select owner, table_name from dba_tab_columns d 
+where column_id=(select max(column_id) from dba_tab_columns where owner=d.owner and table_name=d.table_name)-1
+and data_type='VARCHAR2'
+intersect
+select owner, table_name from dba_tab_columns d 
+where column_id=(select max(column_id) from dba_tab_columns where owner=d.owner and table_name=d.table_name)
+and data_type='VARCHAR2');
+
+--Melyik táblatéren van a legkevesebb felhasználó táblája?
+select tablespace_name from
+(select tablespace_name, count(*) from
+(select owner, tablespace_name, count(*) from dba_segments where segment_type='TABLE' group by owner, tablespace_name order by 1,2 ASC) group by tablespace_name order by 2 ASC)
+where rownum = 1;
+
+--Adjuk meg a NIKOVITS felhasználó azon tábláit, melyhez van BITMAP index!(táblanév)
+SELECT table_name FROM dba_indexes where index_type = 'BITMAP' AND OWNER='NIKOVITS';
+
+--1. Adjuk meg azon felhasználók nevét akiknek olyan particionált táblái vannak melyre legalább 2 BITMAP index van létrehozva.
+SELECT owner FROM ((SELECT table_name, owner FROM dba_indexes where index_type = 'BITMAP') NATURAL JOIN (SELECT segment_name, owner FROM dba_segments where segment_type = 'TABLE_PARTITION')) group by owner having count(*)>=2;
+
+vagy
+
+select part.owner from (DBA_PART_TABLES part join dba_indexes ind on part.owner = ind.table_owner AND part.table_name=ind.table_name) where index_type = 'BITMAP' group by part.owner having count(*) >=2;
+
+
+--2 Mely felhasználók indexei foglalják a legtöbb helyet az adatbázisban?
+select owner from (select owner, segment_name, sum(bytes) as meret from DBA_SEGMENTS where segment_type = 'INDEX' group by owner, segment_name) where rownum=1 order by meret desc;
+
+--3. ADjuk meg azoknak a tábláknak a nevét amelyeknek utolsó 2 oszlopa data típusú
+select distinct table_name from
+(select owner, table_name from dba_tab_columns d 
+where column_id=(select max(column_id) from dba_tab_columns where owner=d.owner and table_name=d.table_name)-1
+and data_type='DATE'
+intersect
+select owner, table_name from dba_tab_columns d 
+where column_id=(select max(column_id) from dba_tab_columns where owner=d.owner and table_name=d.table_name)
+and data_type='DATE');
+
+--5. ADjuk meg a NIKOVITS felhaszn. oylan index szervezett tábláit (IOT), melyeknek az elsõ oszlopa numner típusú (név)
+SELECT table_name FROM dba_tables where OWNER='NIKOVITS' and IOT_TYPE = 'IOT';
