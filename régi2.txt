@@ -1,3 +1,5 @@
+Teszt
+
 -- 1. feladat
 
 select distinct OWNER from DBA_OBJECTS
